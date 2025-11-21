@@ -7,7 +7,8 @@ export const IOSStatusBar: React.FC = () => {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(' ', ''));
+      // Use 24-hour format common in Chinese mobile UIs
+      setTime(now.toLocaleTimeString('zh-CN', { hour: 'numeric', minute: '2-digit', hour12: false }));
     };
     updateTime();
     const interval = setInterval(updateTime, 60000);

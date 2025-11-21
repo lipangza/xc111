@@ -25,12 +25,10 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
   total
 }) => {
   const isCurrent = index === currentIndex;
-  // Calculate distance from current index. 
-  // We use a circular-ish logic for the stack visuals if desired, 
-  // but for simplicity and cleaner logic, we'll treat it as a linear list here.
   const offset = index - currentIndex; 
   
   const cardRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const controls = useAnimation();
   
   // Motion Values for Drag
@@ -41,23 +39,35 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
   // Dynamic visuals based on drag
   const opacityTrash = useTransform(y, [-150, -50], [1, 0]);
   const opacityHeart = useTransform(y, [50, 150], [0, 1]);
-  const opacityOverlay = useTransform(y, [-150, 0, 150], [0.5, 0, 0.5]);
-  const colorOverlay = useTransform(y, [-100, 0, 100], ["rgba(239, 68, 68, 1)", "rgba(0,0,0,0)", "rgba(236, 72, 153, 1)"]);
 
-  // Reset position when index changes (if recycled)
+  // Video Autoplay Logic
+  useEffect(() => {
+    if (item.type === MediaType.VIDEO && videoRef.current) {
+        if (isCurrent) {
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch((error) => {
+                    console.log("Auto-play was prevented:", error);
+                });
+            }
+        } else {
+            videoRef.current.pause();
+            videoRef.current.currentTime = 0;
+        }
+    }
+  }, [isCurrent, item.type]);
+
+  // Reset position when index changes
   useEffect(() => {
     x.set(0);
     y.set(0);
     controls.start({ x: 0, y: 0, scale: 1, opacity: 1 });
   }, [index, currentIndex, controls, x, y]);
 
-  // Visual Stack Logic
-  // We only render items close to current to save resources (windowing)
   if (Math.abs(offset) > 2) return null;
 
   const isVisible = Math.abs(offset) <= 2;
   
-  // Calculate stack styles
   let zIndex = 0;
   let scale = 1;
   let xOffset = 0;
@@ -66,13 +76,11 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
   let blur = 0;
 
   if (offset === 0) {
-    // Active card
     zIndex = 50;
     scale = 1;
     xOffset = 0;
     opacity = 1;
   } else if (offset === 1) {
-    // Next card (peeking right)
     zIndex = 40;
     scale = 0.92;
     xOffset = 40; 
@@ -80,7 +88,6 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
     brightness = 0.7;
     blur = 4;
   } else if (offset === -1) {
-    // Previous card (peeking left)
     zIndex = 40;
     scale = 0.92;
     xOffset = -40;
@@ -88,7 +95,6 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
     brightness = 0.7;
     blur = 4;
   } else {
-    // Further back
     zIndex = 30;
     scale = 0.85;
     xOffset = offset > 0 ? 80 : -80;
@@ -97,34 +103,25 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
 
   const handleDragEnd = async (event: any, info: PanInfo) => {
     const threshold = 100;
-    const velocity = info.velocity;
 
-    // Vertical Actions (Delete / Favorite)
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) {
       if (info.offset.y < -threshold) {
-        // Swipe Up -> Delete
         await controls.start({ y: -800, opacity: 0, transition: { duration: 0.4 } });
         onRemove(item.id);
       } else if (info.offset.y > threshold) {
-        // Swipe Down -> Favorite
         await controls.start({ y: 800, opacity: 0, transition: { duration: 0.4 } });
         onFavorite(item.id);
       } else {
-        // Snap back
         controls.start({ x: 0, y: 0 });
       }
-    } 
-    // Horizontal Actions (Navigate)
-    else {
+    } else {
       if (info.offset.x < -threshold / 2) {
-        // Swipe Left -> Next
         if (index < total - 1) {
           onNext();
         } else {
            controls.start({ x: 0, y: 0 });
         }
       } else if (info.offset.x > threshold / 2) {
-        // Swipe Right -> Prev
         if (index > 0) {
           onPrev();
         } else {
@@ -139,15 +136,15 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
   return (
     <motion.div
       ref={cardRef}
-      drag={isCurrent ? true : false} // Only allow dragging current card
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }} // Use constraints to simulate elastic snapback unless committed
-      dragElastic={0.6} // Make it feel rubbery
+      drag={isCurrent ? true : false} 
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.6}
       onDragEnd={handleDragEnd}
       animate={controls}
       style={{
         x,
         y,
-        rotate: isCurrent ? rotate : offset * 5, // Static rotation for background cards
+        rotate: isCurrent ? rotate : offset * 5,
         zIndex,
         position: 'absolute',
         top: 0,
@@ -160,36 +157,37 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
         perspective: 1000,
       }}
       initial={false}
-      transition={{
-        type: "spring",
-        stiffness: 260,
-        damping: 20
-      }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
     >
-      {/* Animated Container for the Stack Effect */}
       <motion.div
         className="relative w-full h-full overflow-hidden shadow-2xl bg-black"
         animate={{
           scale,
-          x: isCurrent ? 0 : xOffset, // If current, x is controlled by drag (motion value), if not, by state
+          x: isCurrent ? 0 : xOffset,
           opacity,
           filter: `brightness(${brightness}) blur(${blur}px)`,
         }}
         transition={{ duration: 0.4, ease: "easeInOut" }}
-        style={{
-          // Typically apps apply a slight rotation to back cards
-          transformOrigin: "center bottom"
-        }}
+        style={{ transformOrigin: "center bottom" }}
       >
-        {/* Background Image */}
-        <img 
-          src={item.url} 
-          alt="Gallery Item" 
-          className="w-full h-full object-cover pointer-events-none select-none" 
-        />
+        {item.type === MediaType.VIDEO ? (
+           <video
+             ref={videoRef}
+             src={item.url}
+             className="w-full h-full object-cover pointer-events-none select-none"
+             playsInline
+             loop
+             muted
+           />
+        ) : (
+            <img 
+              src={item.url} 
+              alt="Gallery Item" 
+              className="w-full h-full object-cover pointer-events-none select-none" 
+            />
+        )}
         
-        {/* Video Indicator */}
-        {item.type === MediaType.VIDEO && (
+        {item.type === MediaType.VIDEO && !isCurrent && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-white/20 backdrop-blur-md rounded-full p-4 border border-white/30">
                     <PlayCircle size={48} fill="white" className="text-white/80" />
@@ -197,51 +195,47 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
             </div>
         )}
 
-        {/* Top Gradient Overlay for Text Visibility */}
-        <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-        
-        {/* Bottom Gradient Overlay */}
+        {/* Gradients */}
+        <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 h-60 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
-        {/* Header Info */}
-        <div className="absolute top-14 left-0 w-full text-center z-10 pointer-events-none">
-          <h2 className="text-white/90 font-semibold text-lg tracking-wide drop-shadow-md">{item.date}</h2>
+        {/* Enhanced Header Info (Date & Location) */}
+        <div className="absolute top-14 left-0 w-full flex flex-col items-center z-10 pointer-events-none">
+          <h2 className="text-white font-bold text-xl tracking-wide drop-shadow-lg">{item.date}</h2>
+          
           {item.location && (
-            <div className="flex items-center justify-center gap-1 text-white/70 text-xs mt-1">
-                <MapPin size={10} />
-                <span>{item.location}</span>
+            <div className="mt-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-white/90 text-xs shadow-sm">
+                <MapPin size={10} className="fill-current text-red-400" />
+                <span className="font-medium tracking-wide">{item.location}</span>
             </div>
           )}
         </div>
 
-        {/* Action Feedback Overlays (Only active on current card drag) */}
+        {/* Action Feedback */}
         {isCurrent && (
           <>
-            {/* Delete Overlay */}
             <motion.div 
               style={{ opacity: opacityTrash }}
               className="absolute inset-0 bg-red-500/30 flex flex-col items-center justify-start pt-32 z-20"
             >
-              <div className="bg-white p-4 rounded-full shadow-xl">
+              <div className="bg-white p-4 rounded-full shadow-xl transform scale-110">
                 <Trash2 className="text-red-500 w-10 h-10" />
               </div>
-              <span className="text-white font-bold mt-4 text-xl tracking-widest uppercase drop-shadow-md">Delete</span>
+              <span className="text-white font-bold mt-4 text-xl tracking-widest uppercase drop-shadow-md">删除</span>
             </motion.div>
 
-            {/* Favorite Overlay */}
             <motion.div 
               style={{ opacity: opacityHeart }}
               className="absolute inset-0 bg-pink-500/30 flex flex-col items-center justify-end pb-40 z-20"
             >
-               <span className="text-white font-bold mb-4 text-xl tracking-widest uppercase drop-shadow-md">Favorite</span>
-               <div className="bg-white p-4 rounded-full shadow-xl">
+               <span className="text-white font-bold mb-4 text-xl tracking-widest uppercase drop-shadow-md">收藏</span>
+               <div className="bg-white p-4 rounded-full shadow-xl transform scale-110">
                 <Heart className="text-pink-500 w-10 h-10 fill-current" />
               </div>
             </motion.div>
           </>
         )}
         
-        {/* Favorite Status Indicator (Permanent) */}
         {item.isFavorite && !isCurrent && (
              <div className="absolute bottom-32 right-6 z-10">
                  <Heart className="text-pink-500 fill-current drop-shadow-lg" size={28} />

@@ -1,19 +1,20 @@
 import React from 'react';
-import { Camera, Image as ImageIcon, Video, Grid } from 'lucide-react';
+import { FolderOpen, Image as ImageIcon, Video, Grid } from 'lucide-react';
 import { TabType } from '../types';
 import clsx from 'clsx';
 
 interface BottomNavProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  onCameraClick: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange, onCameraClick }) => {
   
   const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [
-    { id: 'photos', label: 'Photos', icon: ImageIcon },
-    { id: 'videos', label: 'Videos', icon: Video },
-    { id: 'all', label: 'All', icon: Grid },
+    { id: 'photos', label: '照片', icon: ImageIcon },
+    { id: 'videos', label: '视频', icon: Video },
+    { id: 'all', label: '全部', icon: Grid },
   ];
 
   return (
@@ -21,9 +22,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
       {/* Main Pill Container */}
       <div className="pointer-events-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full p-1.5 flex items-center shadow-2xl shadow-black/50 scale-100 transition-transform active:scale-95">
         
-        {/* Camera Button (Leading Action) */}
-        <button className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white mr-2 transition-colors">
-           <Camera size={20} />
+        {/* Import/Library Button (Leading Action) */}
+        <button 
+          onClick={onCameraClick}
+          className="w-10 h-10 rounded-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 flex items-center justify-center text-blue-400 mr-2 transition-colors"
+        >
+           <FolderOpen size={20} />
         </button>
 
         {/* Tabs */}

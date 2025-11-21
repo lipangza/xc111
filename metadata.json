@@ -1,5 +1,7 @@
 {
-  "name": "FlowGallery iOS",
+  "name": "去留相册",
   "description": "An immersive, gesture-based photo gallery with iOS aesthetics, stack transitions, and intuitive swipe actions for managing media.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
